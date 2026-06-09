@@ -9,16 +9,44 @@ import {
 import { FileService } from './file.service';
 import { Socket, Server } from 'socket.io';
 
-interface MessageBody {
+interface UserData {
   roomId: string;
   peerId: string;
+  name: string;
 }
 
-@WebSocketGateway()
+const adjectives = [
+  'Fuchsia',
+  'Crimson',
+  'Silent',
+  'Amber',
+  'Cosmic',
+  'Neon',
+  'Violet',
+  'Turquoise',
+];
+const animals = [
+  'Harrier',
+  'Falcon',
+  'Panther',
+  'Viper',
+  'Lynx',
+  'Condor',
+  'Manta',
+  'Jaguar',
+];
+
+const randomName = () => {
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+  return `${adj} ${animal}`;
+};
+
+@WebSocketGateway({ cors: { origin: '*' } })
 export class FileGateway implements OnGatewayDisconnect {
   constructor(private readonly fileService: FileService) {}
 
-  private activeUsers = new Map<string, MessageBody>();
+  private activeUsers = new Map<string, UserData>();
 
   @WebSocketServer()
   server!: Server;
@@ -26,12 +54,16 @@ export class FileGateway implements OnGatewayDisconnect {
   @SubscribeMessage('join-room')
   handleJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: MessageBody,
+    @MessageBody() data: { roomId: string; peerId: string },
   ) {
     const { roomId, peerId } = data;
+    const name = randomName();
+
     client.join(roomId);
-    client.to(roomId).emit('user-connected', { peerId });
-    this.activeUsers.set(client.id, data);
+    client.emit('your-name', { name });
+    client.to(roomId).emit('user-connected', { peerId, name });
+
+    this.activeUsers.set(client.id, { roomId, peerId, name });
   }
 
   handleDisconnect(@ConnectedSocket() client: Socket) {

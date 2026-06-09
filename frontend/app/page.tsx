@@ -1,3 +1,4 @@
+"use client";
 import { usePeer } from "@/hooks/usePeer";
 import { useSocket } from "@/hooks/useSocket";
 import Image from "next/image";
