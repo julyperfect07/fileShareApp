@@ -3,6 +3,7 @@ import { usePeer } from "@/hooks/usePeer";
 import { useSocket } from "@/hooks/useSocket";
 import { DataConnection } from "peerjs";
 import { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 
 interface ConnectedPeer {
   peerId: string;
@@ -33,10 +34,12 @@ export default function Home() {
   const selectedPeer = useRef<DataConnection | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const myNameRef = useRef<string>("");
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [myRoomId, setMyRoomId] = useState<string>("");
+  const [joinCode, setJoinCode] = useState<string>("");
 
   const handleData = (data: unknown, conn: DataConnection) => {
     if (typeof data !== "object" || data === null || !("type" in data)) return;
-
     const d = data as PeerMessage;
 
     if (d.type === "intro") {
@@ -88,14 +91,28 @@ export default function Home() {
         (c) => c.peer !== conn.peer,
       );
     });
-    conn.on("error", (err) => {
-      console.error("connection error:", err);
-    });
+    conn.on("error", (err) => console.error("connection error:", err));
   };
 
+  // auto create room when peerId is ready
+  useEffect(() => {
+    if (!socket || !peerId) return;
+    socket.emit("create-room", { peerId });
+
+    socket.on("my-room", ({ roomId, name }) => {
+      setMyRoomId(roomId);
+      setMyName(name);
+      myNameRef.current = name;
+    });
+
+    return () => {
+      socket.off("my-room");
+    };
+  }, [peerId, socket]);
+
+  // peer connection logic
   useEffect(() => {
     if (!socket || !peerId || !peer) return;
-    socket.emit("join-room", { roomId: "123", peerId });
 
     socket.on("your-name", ({ name }) => {
       setMyName(name);
@@ -137,8 +154,16 @@ export default function Home() {
     };
   }, [peerId, socket, peer]);
 
+  const joinRoom = () => {
+    if (!socket || !peerId || !joinCode.trim()) return;
+    socket.emit("join-room", { roomId: joinCode.trim(), peerId });
+    setShowModal(false);
+    setJoinCode("");
+  };
+
   return (
     <div className="relative w-screen h-screen bg-black flex items-center justify-center">
+      {/* hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -150,10 +175,10 @@ export default function Home() {
         }}
       />
 
+      {/* peer circles */}
       {peers.map((p, index) => {
         const angle = (index / peers.length) * Math.PI * 2 - Math.PI / 2;
         const radius = 180;
-
         const x = Math.cos(angle) * radius;
         const y = Math.sin(angle) * radius;
 
@@ -180,14 +205,86 @@ export default function Home() {
         );
       })}
 
-      <div className="absolute bottom-8 flex flex-col items-center gap-1">
+      {/* your name at bottom */}
+      <div className="absolute bottom-8 flex flex-col items-center gap-2">
         <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-white text-sm font-semibold">
           You
         </div>
         <span className="text-gray-400 text-xs">
           {myName || "Connecting..."}
         </span>
+        <button
+          onClick={() => setShowModal(true)}
+          className="mt-2 px-4 py-2 bg-teal-600 text-white text-xs rounded-full"
+        >
+          Pair Devices
+        </button>
       </div>
+
+      {/* modal */}
+      {showModal && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
+          <div className="bg-zinc-900 rounded-2xl p-6 w-80 flex flex-col items-center gap-4">
+            <h2 className="text-white font-semibold text-lg">Pair Devices</h2>
+
+            {/* QR code */}
+            {myRoomId && (
+              <div className="bg-white p-3 rounded-xl">
+                <QRCodeCanvas value={myRoomId} size={160} />
+              </div>
+            )}
+
+            {/* room code */}
+            <div className="flex gap-3">
+              {myRoomId.split("").map((digit, i) => (
+                <div
+                  key={i}
+                  className="w-9 h-11 bg-zinc-700 rounded-lg flex items-center justify-center text-white text-lg font-bold"
+                >
+                  {digit}
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-400 text-xs text-center">
+              Input this key on another device or scan the QR code.
+            </p>
+
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1 h-px bg-zinc-700" />
+              <span className="text-gray-500 text-xs">OR</span>
+              <div className="flex-1 h-px bg-zinc-700" />
+            </div>
+
+            {/* join input */}
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              placeholder="Enter code from another device"
+              maxLength={6}
+              className="w-full bg-zinc-700 text-white text-center rounded-lg px-3 py-2 text-sm outline-none tracking-widest"
+            />
+
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setJoinCode("");
+                }}
+                className="flex-1 py-2 rounded-lg bg-zinc-700 text-teal-400 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={joinRoom}
+                className="flex-1 py-2 rounded-lg bg-zinc-700 text-white text-sm font-semibold"
+              >
+                Pair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

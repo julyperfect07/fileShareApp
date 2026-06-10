@@ -51,6 +51,20 @@ export class FileGateway implements OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
+  @SubscribeMessage('create-room')
+  handleCreateRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { peerId: string },
+  ) {
+    const { peerId } = data;
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+    const name = randomName();
+    client.join(roomId);
+    client.emit('my-room', { roomId, name });
+
+    this.activeUsers.set(client.id, { roomId, peerId, name });
+  }
+
   @SubscribeMessage('join-room')
   handleJoin(
     @ConnectedSocket() client: Socket,
