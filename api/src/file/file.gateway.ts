@@ -62,6 +62,11 @@ export class FileGateway implements OnGatewayDisconnect {
     client.join(roomId);
     client.emit('your-name', { name });
     client.to(roomId).emit('user-connected', { peerId, name });
+    // const existingUsers = Array.from(this.activeUsers.entries())
+    //   .filter(([_, u]) => u.roomId === roomId)
+    //   .map(([_, u]) => ({ peerId: u.peerId, name: u.name }));
+
+    // client.emit('existing-users', existingUsers);
 
     this.activeUsers.set(client.id, { roomId, peerId, name });
   }
