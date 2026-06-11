@@ -5,7 +5,9 @@ export function useSocket() {
   const socketInstance = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const socket = io("http://localhost:3000");
+    const socket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
+    );
 
     socketInstance.current = socket;
     console.log(socket);
