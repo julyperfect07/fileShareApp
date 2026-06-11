@@ -7,6 +7,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { Header } from "@/components/Header";
+import { useSearchParams } from "next/navigation";
 
 interface ConnectedPeer {
   peerId: string;
@@ -39,6 +40,7 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState("");
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const [receivingFile, setReceivingFile] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => setMounted(true), []);
 
@@ -145,6 +147,12 @@ export default function Home() {
       connections.current = [];
     };
   }, [peerId, socket, peer]);
+
+  useEffect(() => {
+    const room = searchParams.get("room");
+    if (!room || !socket || !peerId) return;
+    socket.emit("join-room", { roomId: room, peerId });
+  }, [peerId, socket, searchParams]);
 
   const joinRoom = () => {
     if (!socket || !peerId || !joinCode.trim()) return;
@@ -418,7 +426,10 @@ export default function Home() {
 
               {myRoomId && (
                 <div className="bg-white p-3 rounded-2xl">
-                  <QRCodeCanvas value={myRoomId} size={148} />
+                  <QRCodeCanvas
+                    value={`https://file-share-app-tau.vercel.app?room=${myRoomId}`}
+                    size={148}
+                  />
                 </div>
               )}
 
