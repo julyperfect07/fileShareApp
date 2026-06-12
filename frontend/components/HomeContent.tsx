@@ -1,48 +1,30 @@
 "use client";
-import { usePeer } from "@/hooks/usePeer";
-import { useSocket } from "@/hooks/useSocket";
-import { DataConnection } from "peerjs";
 import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { Header } from "@/components/Header";
-import { useSearchParams } from "next/navigation";
 import { translations } from "@/lib/translations";
-
-interface ConnectedPeer {
-  peerId: string;
-  name: string;
-  conn: DataConnection;
-}
-
-type IntroMessage = { type: "intro"; name: string };
-type FileMessage = {
-  type: "file";
-  name: string;
-  fileType: string;
-  data: ArrayBuffer;
-};
-type PeerMessage = IntroMessage | FileMessage;
+import { usePeerConnection } from "@/hooks/usePeerConnection";
 
 export default function HomeContent() {
-  const { peer, peerId } = usePeer();
-  const { socket } = useSocket();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const connections = useRef<DataConnection[]>([]);
-  const [myName, setMyName] = useState<string>("");
-  const [peers, setPeers] = useState<ConnectedPeer[]>([]);
-  const selectedPeer = useRef<DataConnection | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const myNameRef = useRef<string>("");
   const [showModal, setShowModal] = useState(false);
-  const [myRoomId, setMyRoomId] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [sendingTo, setSendingTo] = useState<string | null>(null);
-  const [receivingFile, setReceivingFile] = useState(false);
   const [lang, setLang] = useState<"en" | "ar">("en");
-  const searchParams = useSearchParams();
+  const selectedPeer = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    peers,
+    myName,
+    myRoomId,
+    sendingTo,
+    receivingFile,
+    sendFileToPeer,
+    joinRoom,
+  } = usePeerConnection();
 
   const t = translations[lang];
 
@@ -54,121 +36,6 @@ export default function HomeContent() {
   }, [lang]);
 
   const isDark = !mounted || theme === "dark";
-
-  const handleData = (data: unknown, conn: DataConnection) => {
-    if (typeof data !== "object" || data === null || !("type" in data)) return;
-    const d = data as PeerMessage;
-    if (d.type === "intro") {
-      setPeers((prev) =>
-        prev.map((p) => (p.peerId === conn.peer ? { ...p, name: d.name } : p)),
-      );
-    }
-    if (d.type === "file") {
-      setReceivingFile(true);
-      setTimeout(() => setReceivingFile(false), 2000);
-      const blob = new Blob([d.data], { type: d.fileType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = d.name;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const sendFileToPeer = async (conn: DataConnection, file: File) => {
-    if (file.size > 100 * 1024 * 1024) {
-      alert("File too large, max 100MB");
-      return;
-    }
-    setSendingTo(conn.peer);
-    const buffer = await file.arrayBuffer();
-    conn.send({
-      type: "file",
-      name: file.name,
-      fileType: file.type,
-      data: buffer,
-    });
-    setTimeout(() => setSendingTo(null), 2000);
-  };
-
-  const setupConn = (conn: DataConnection) => {
-    conn.on("open", () => {
-      if (myNameRef.current)
-        conn.send({ type: "intro", name: myNameRef.current });
-      connections.current.push(conn);
-      setPeers((prev) => {
-        if (prev.some((p) => p.peerId === conn.peer)) return prev;
-        return [...prev, { peerId: conn.peer, name: "Unknown", conn }];
-      });
-    });
-    conn.on("data", (data) => handleData(data, conn));
-    conn.on("close", () => {
-      setPeers((prev) => prev.filter((p) => p.peerId !== conn.peer));
-      connections.current = connections.current.filter(
-        (c) => c.peer !== conn.peer,
-      );
-    });
-    conn.on("error", (err) => console.error("connection error:", err));
-  };
-
-  useEffect(() => {
-    if (!socket || !peerId) return;
-    socket.emit("create-room", { peerId });
-    socket.on("my-room", ({ roomId, name }) => {
-      setMyRoomId(roomId);
-      setMyName(name);
-      myNameRef.current = name;
-    });
-    return () => {
-      socket.off("my-room");
-    };
-  }, [peerId, socket]);
-
-  useEffect(() => {
-    if (!socket || !peerId || !peer) return;
-    socket.on("your-name", ({ name }) => {
-      setMyName(name);
-      myNameRef.current = name;
-      connections.current.forEach((conn) => conn.send({ type: "intro", name }));
-    });
-    socket.on("user-connected", ({ peerId: otherPeerId }) => {
-      const conn = peer.connect(otherPeerId);
-      setupConn(conn);
-    });
-    peer.on("connection", (conn) => setupConn(conn));
-    socket.on("user-disconnected", ({ peerId: disconnectedPeerId }) => {
-      const target = connections.current.find(
-        (c) => c.peer === disconnectedPeerId,
-      );
-      target?.close();
-      setPeers((prev) => prev.filter((p) => p.peerId !== disconnectedPeerId));
-      connections.current = connections.current.filter(
-        (c) => c.peer !== disconnectedPeerId,
-      );
-    });
-    return () => {
-      socket.off("user-connected");
-      socket.off("your-name");
-      socket.off("user-disconnected");
-      peer.removeAllListeners("connection");
-      connections.current.forEach((conn) => conn.close());
-      connections.current = [];
-    };
-  }, [peerId, socket, peer]);
-
-  useEffect(() => {
-    const room = searchParams.get("room");
-    if (!room || !socket || !peerId) return;
-    socket.emit("join-room", { roomId: room, peerId });
-  }, [peerId, socket, searchParams]);
-
-  const joinRoom = () => {
-    if (!socket || !peerId || !joinCode.trim()) return;
-    socket.emit("join-room", { roomId: joinCode.trim(), peerId });
-    setShowModal(false);
-    setJoinCode("");
-  };
 
   const tealRing = (opacity: number) => `rgba(20, 184, 166, ${opacity})`;
   const circleBg = isDark ? "#111827" : "#f8fafc";
@@ -486,7 +353,13 @@ export default function HomeContent() {
                 type="text"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && joinRoom()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    joinRoom(joinCode);
+                    setShowModal(false);
+                    setJoinCode("");
+                  }
+                }}
                 placeholder={t.enterCode}
                 maxLength={6}
                 className="w-full max-w-xs text-center rounded-xl px-4 py-3 text-sm outline-none tracking-widest transition-colors"
@@ -509,7 +382,11 @@ export default function HomeContent() {
                   {t.cancel}
                 </button>
                 <button
-                  onClick={joinRoom}
+                  onClick={() => {
+                    joinRoom(joinCode);
+                    setShowModal(false);
+                    setJoinCode("");
+                  }}
                   className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-colors hover:opacity-90"
                   style={{ background: "#0f766e" }}
                 >
