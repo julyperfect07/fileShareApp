@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { Header } from "@/components/Header";
 import { useSearchParams } from "next/navigation";
+import { translations } from "@/lib/translations";
 
 interface ConnectedPeer {
   peerId: string;
@@ -40,9 +41,17 @@ export default function HomeContent() {
   const [joinCode, setJoinCode] = useState("");
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const [receivingFile, setReceivingFile] = useState(false);
+  const [lang, setLang] = useState<"en" | "ar">("en");
   const searchParams = useSearchParams();
 
+  const t = translations[lang];
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -162,7 +171,6 @@ export default function HomeContent() {
   };
 
   const tealRing = (opacity: number) => `rgba(20, 184, 166, ${opacity})`;
-
   const circleBg = isDark ? "#111827" : "#f8fafc";
   const circleBorder = isDark ? tealRing(0.3) : tealRing(0.5);
   const modalBg = isDark ? "#0f0f1a" : "#ffffff";
@@ -179,7 +187,7 @@ export default function HomeContent() {
       className="relative w-screen h-screen flex items-center justify-center overflow-hidden"
       style={{ background: isDark ? "#080810" : "#f0fdf9" }}
     >
-      <Header />
+      <Header lang={lang} setLang={setLang} />
 
       {/* radar rings */}
       {[1, 2, 3, 4, 5].map((i) => (
@@ -227,11 +235,10 @@ export default function HomeContent() {
             transition={{ duration: 0.5 }}
           >
             <p className="text-teal-500 dark:text-teal-400 text-base font-medium tracking-wide">
-              Pair devices to send files
+              {t.pairToSend}
             </p>
             <p className="text-gray-400 dark:text-white/30 text-sm max-w-xs">
-              Open this app on another device, then tap "Pair devices" to
-              connect
+              {t.pairSubtitle}
             </p>
           </motion.div>
         )}
@@ -295,7 +302,7 @@ export default function HomeContent() {
                   }
                 />
                 <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center text-white font-semibold text-sm relative z-10 transition-all duration-300"
+                  className="w-20 h-20 rounded-full flex items-center justify-center font-semibold text-sm relative z-10 transition-all duration-300"
                   style={{
                     background: isSending ? "#0f766e" : circleBg,
                     border: `1px solid ${isSending ? tealRing(0.8) : circleBorder}`,
@@ -318,7 +325,7 @@ export default function HomeContent() {
                   {p.name}
                 </span>
                 <span className="text-teal-500 dark:text-teal-400 text-[10px]">
-                  {isSending ? "sending..." : "click to send"}
+                  {isSending ? t.sending : t.clickToSend}
                 </span>
               </div>
             </motion.div>
@@ -373,14 +380,14 @@ export default function HomeContent() {
           className="text-xs"
           style={{ color: isDark ? "rgba(255,255,255,0.6)" : "#6b7280" }}
         >
-          {myName || "Connecting..."}
+          {myName || t.connecting}
         </span>
         <button
           onClick={() => setShowModal(true)}
           className="mt-1 px-5 py-1.5 rounded-full text-teal-500 dark:text-teal-400 text-xs font-medium transition-colors hover:bg-teal-500/10"
           style={{ border: `1px solid ${tealRing(0.35)}` }}
         >
-          Pair devices
+          {t.pairDevices}
         </button>
       </div>
 
@@ -421,7 +428,7 @@ export default function HomeContent() {
                 className="font-semibold text-base"
                 style={{ color: isDark ? "white" : "#111827" }}
               >
-                Pair devices
+                {t.pairDevicesTitle}
               </h2>
 
               {myRoomId && (
@@ -453,7 +460,7 @@ export default function HomeContent() {
                 className="text-xs text-center"
                 style={{ color: isDark ? "rgba(255,255,255,0.35)" : "#9ca3af" }}
               >
-                Input this key on another device or scan the QR code
+                {t.inputKey}
               </p>
 
               <div className="flex items-center gap-3 w-full max-w-xs">
@@ -480,7 +487,7 @@ export default function HomeContent() {
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && joinRoom()}
-                placeholder="Enter code from another device"
+                placeholder={t.enterCode}
                 maxLength={6}
                 className="w-full max-w-xs text-center rounded-xl px-4 py-3 text-sm outline-none tracking-widest transition-colors"
                 style={{
@@ -499,14 +506,14 @@ export default function HomeContent() {
                   className="flex-1 py-3 rounded-xl text-teal-500 dark:text-teal-400 text-sm font-semibold transition-colors"
                   style={{ background: cancelBg }}
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   onClick={joinRoom}
                   className="flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-colors hover:opacity-90"
                   style={{ background: "#0f766e" }}
                 >
-                  Pair
+                  {t.pair}
                 </button>
               </div>
             </motion.div>
