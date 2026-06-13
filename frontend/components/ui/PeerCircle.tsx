@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { DataConnection } from "peerjs";
+import { Progress } from "@/components/ui/progress";
 
 interface ConnectedPeer {
   peerId: string;
@@ -13,6 +14,7 @@ interface PeerCircleProps {
   index: number;
   total: number;
   isSending: boolean;
+  sendProgress: number;
   isDark: boolean;
   t: { sending: string; clickToSend: string };
   onClick: () => void;
@@ -25,6 +27,7 @@ export function PeerCircle({
   index,
   total,
   isSending,
+  sendProgress,
   isDark,
   t,
   onClick,
@@ -77,13 +80,17 @@ export function PeerCircle({
             color: isDark ? "white" : isSending ? "white" : "#134e4a",
           }}
         >
-          <span className="text-base font-semibold">
-            {peer.name.split(" ")[0]?.[0]}
-            {peer.name.split(" ")[1]?.[0]}
-          </span>
+          {isSending ? (
+            <span className="text-sm font-bold">{sendProgress}%</span>
+          ) : (
+            <span className="text-base font-semibold">
+              {peer.name.split(" ")[0]?.[0]}
+              {peer.name.split(" ")[1]?.[0]}
+            </span>
+          )}
         </div>
       </div>
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center gap-1">
         <span
           className="text-xs font-medium"
           style={{ color: isDark ? "rgba(255,255,255,0.8)" : "#1f2937" }}
@@ -93,6 +100,11 @@ export function PeerCircle({
         <span className="text-teal-500 dark:text-teal-400 text-[10px]">
           {isSending ? t.sending : t.clickToSend}
         </span>
+        {isSending && (
+          <div className="w-20">
+            <Progress value={sendProgress} className="h-1" />
+          </div>
+        )}
       </div>
     </motion.div>
   );

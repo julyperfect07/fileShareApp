@@ -4,6 +4,7 @@ import { DataConnection } from "peerjs";
 import { usePeer } from "./usePeer";
 import { useSocket } from "./useSocket";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 interface ConnectedPeer {
   peerId: string;
@@ -11,26 +12,77 @@ interface ConnectedPeer {
   conn: DataConnection;
 }
 
-type IntroMessage = { type: "intro"; name: string };
-type FileMessage = {
-  type: "file";
+interface IncomingTransfer {
+  id: string;
   name: string;
   fileType: string;
-  data: ArrayBuffer;
+  total: number;
+  chunks: ArrayBuffer[];
+}
+
+type IntroMessage = { type: "intro"; name: string };
+
+type ChunkMessage = {
+  type: "file-chunk";
+  id: string;
+  chunk: ArrayBuffer;
+  index: number;
+  total: number;
+  name: string;
+  fileType: string;
 };
-type PeerMessage = IntroMessage | FileMessage;
+
+type FileStartMessage = {
+  type: "file-start";
+  id: string;
+  name: string;
+  fileType: string;
+  size: number;
+  total: number;
+};
+
+type FileEndMessage = {
+  type: "file-end";
+  id: string;
+};
+
+type PeerMessage =
+  | IntroMessage
+  | ChunkMessage
+  | FileStartMessage
+  | FileEndMessage;
+
+const CHUNK_SIZE = 64 * 1024; // 64KB per chunk
 
 export function usePeerConnection() {
   const { peer, peerId } = usePeer();
   const { socket } = useSocket();
   const connections = useRef<DataConnection[]>([]);
   const myNameRef = useRef<string>("");
+  const incomingTransfers = useRef<Map<string, IncomingTransfer>>(new Map());
+
   const [myName, setMyName] = useState<string>("");
   const [myRoomId, setMyRoomId] = useState<string>("");
   const [peers, setPeers] = useState<ConnectedPeer[]>([]);
   const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const [sendProgress, setSendProgress] = useState<number>(0);
   const [receivingFile, setReceivingFile] = useState(false);
+  const [receiveProgress, setReceiveProgress] = useState<number>(0);
   const searchParams = useSearchParams();
+
+  const downloadFile = (
+    chunks: ArrayBuffer[],
+    name: string,
+    fileType: string,
+  ) => {
+    const blob = new Blob(chunks, { type: fileType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleData = (data: unknown, conn: DataConnection) => {
     if (typeof data !== "object" || data === null || !("type" in data)) return;
@@ -42,33 +94,91 @@ export function usePeerConnection() {
       );
     }
 
-    if (d.type === "file") {
+    if (d.type === "file-start") {
+      incomingTransfers.current.set(d.id, {
+        id: d.id,
+        name: d.name,
+        fileType: d.fileType,
+        total: d.total,
+        chunks: [],
+      });
       setReceivingFile(true);
-      setTimeout(() => setReceivingFile(false), 2000);
-      const blob = new Blob([d.data], { type: d.fileType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = d.name;
-      a.click();
-      URL.revokeObjectURL(url);
+      setReceiveProgress(0);
+      toast.loading(`Receiving ${d.name}...`, { id: d.id });
+    }
+
+    if (d.type === "file-chunk") {
+      const transfer = incomingTransfers.current.get(d.id);
+      if (!transfer) return;
+      transfer.chunks[d.index] = d.chunk;
+      const received = transfer.chunks.filter(Boolean).length;
+      const progress = Math.round((received / transfer.total) * 100);
+      setReceiveProgress(progress);
+    }
+
+    if (d.type === "file-end") {
+      const transfer = incomingTransfers.current.get(d.id);
+      if (!transfer) return;
+      downloadFile(transfer.chunks, transfer.name, transfer.fileType);
+      incomingTransfers.current.delete(d.id);
+      setReceivingFile(false);
+      setReceiveProgress(0);
+      toast.success(`${transfer.name} received!`, { id: d.id });
     }
   };
 
   const sendFileToPeer = async (conn: DataConnection, file: File) => {
     if (file.size > 100 * 1024 * 1024) {
-      alert("File too large, max 100MB");
+      toast.error("File too large, max 100MB");
       return;
     }
-    setSendingTo(conn.peer);
+
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const buffer = await file.arrayBuffer();
+    const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+
+    setSendingTo(conn.peer);
+    setSendProgress(0);
+
+    const toastId = `send-${id}`;
+    toast.loading(`Sending ${file.name}...`, { id: toastId });
+
     conn.send({
-      type: "file",
+      type: "file-start",
+      id,
       name: file.name,
       fileType: file.type,
-      data: buffer,
+      size: file.size,
+      total: totalChunks,
     });
-    setTimeout(() => setSendingTo(null), 2000);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, buffer.byteLength);
+      const chunk = buffer.slice(start, end);
+
+      conn.send({
+        type: "file-chunk",
+        id,
+        chunk,
+        index: i,
+        total: totalChunks,
+        name: file.name,
+        fileType: file.type,
+      });
+
+      const progress = Math.round(((i + 1) / totalChunks) * 100);
+      setSendProgress(progress);
+
+      // small delay to avoid overwhelming the data channel
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    conn.send({ type: "file-end", id });
+
+    toast.success(`${file.name} sent!`, { id: toastId });
+    setSendingTo(null);
+    setSendProgress(0);
   };
 
   const setupConn = (conn: DataConnection) => {
@@ -157,7 +267,9 @@ export function usePeerConnection() {
     myName,
     myRoomId,
     sendingTo,
+    sendProgress,
     receivingFile,
+    receiveProgress,
     sendFileToPeer,
     joinRoom,
   };

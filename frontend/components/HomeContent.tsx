@@ -9,6 +9,7 @@ import { CenterText } from "@/components/ui/CenterText";
 import { PeerCircle } from "@/components/ui/PeerCircle";
 import { MyCircle } from "@/components/ui/MyCircle";
 import { PairModal } from "@/components/ui/PairModal";
+import { Progress } from "@/components/ui/progress";
 import { translations } from "@/lib/translations";
 import { usePeerConnection } from "@/hooks/usePeerConnection";
 
@@ -26,7 +27,9 @@ export default function HomeContent() {
     myName,
     myRoomId,
     sendingTo,
+    sendProgress,
     receivingFile,
+    receiveProgress,
     sendFileToPeer,
     joinRoom,
   } = usePeerConnection();
@@ -47,6 +50,13 @@ export default function HomeContent() {
       className="relative w-screen h-screen flex items-center justify-center overflow-hidden"
       style={{ background: isDark ? "#080810" : "#f0fdf9" }}
     >
+      {/* receive progress bar at top */}
+      {receivingFile && (
+        <div className="absolute top-0 left-0 right-0 z-50">
+          <Progress value={receiveProgress} className="h-1 rounded-none" />
+        </div>
+      )}
+
       <Header lang={lang} setLang={setLang} />
       <RadarRings isDark={isDark} />
       <ReceivingFlash show={receivingFile} />
@@ -71,6 +81,7 @@ export default function HomeContent() {
             index={index}
             total={peers.length}
             isSending={sendingTo === p.peerId}
+            sendProgress={sendProgress}
             isDark={isDark}
             t={t}
             onClick={() => {
