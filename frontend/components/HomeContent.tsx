@@ -120,6 +120,7 @@ export default function HomeContent() {
         }}
         t={t}
       />
+      {/* Footer  */}
       <Footer isDark={isDark} />
     </div>
   );
