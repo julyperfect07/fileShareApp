@@ -32,7 +32,7 @@ export function Footer({ isDark }: FooterProps) {
 
       <div className="flex items-center gap-2">
         <a
-          href="https://github.com/YOUR_GITHUB_USERNAME"
+          href="https://github.com/julyperfect07"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="GitHub"
@@ -42,7 +42,7 @@ export function Footer({ isDark }: FooterProps) {
         </a>
 
         <a
-          href="https://linkedin.com/in/YOUR_LINKEDIN_USERNAME"
+          href="https://www.linkedin.com/in/abdallah-yousef-3143b2288/"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="LinkedIn"
