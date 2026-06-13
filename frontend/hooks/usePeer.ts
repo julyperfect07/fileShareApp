@@ -9,7 +9,7 @@ export function usePeer() {
     const peer = new Peer();
 
     peer.on("open", (id) => {
-      console.log(id);
+      // console.log(id);
       setPeerId(id);
     });
     peerInstance.current = peer;

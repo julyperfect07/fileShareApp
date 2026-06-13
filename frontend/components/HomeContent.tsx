@@ -12,6 +12,7 @@ import { PairModal } from "@/components/ui/PairModal";
 import { Progress } from "@/components/ui/progress";
 import { translations } from "@/lib/translations";
 import { usePeerConnection } from "@/hooks/usePeerConnection";
+import { Footer } from "./Footer";
 
 export default function HomeContent() {
   const { theme } = useTheme();
@@ -30,6 +31,7 @@ export default function HomeContent() {
     sendProgress,
     receivingFile,
     receiveProgress,
+
     sendFileToPeer,
     joinRoom,
   } = usePeerConnection();
@@ -50,18 +52,23 @@ export default function HomeContent() {
       className="relative w-screen h-screen flex items-center justify-center overflow-hidden"
       style={{ background: isDark ? "#080810" : "#f0fdf9" }}
     >
+      {/* TODO : So slow and buggy when receiving files, need to optimize */}
+      {/* <FileRequestModal
+        pendingFile={pendingFile}
+        isDark={isDark}
+        onAccept={acceptFile}
+        onReject={rejectFile}
+      /> */}
       {/* receive progress bar at top */}
       {receivingFile && (
         <div className="absolute top-0 left-0 right-0 z-50">
           <Progress value={receiveProgress} className="h-1 rounded-none" />
         </div>
       )}
-
       <Header lang={lang} setLang={setLang} />
       <RadarRings isDark={isDark} />
       <ReceivingFlash show={receivingFile} />
       <CenterText show={peers.length === 0} isDark={isDark} t={t} />
-
       <input
         type="file"
         ref={fileInputRef}
@@ -72,7 +79,6 @@ export default function HomeContent() {
           e.target.value = "";
         }}
       />
-
       <AnimatePresence>
         {peers.map((p, index) => (
           <PeerCircle
@@ -91,14 +97,12 @@ export default function HomeContent() {
           />
         ))}
       </AnimatePresence>
-
       <MyCircle
         myName={myName}
         isDark={isDark}
         t={t}
         onPair={() => setShowModal(true)}
       />
-
       <PairModal
         show={showModal}
         isDark={isDark}
@@ -116,6 +120,7 @@ export default function HomeContent() {
         }}
         t={t}
       />
+      <Footer isDark={isDark} />
     </div>
   );
 }

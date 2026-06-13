@@ -10,7 +10,7 @@ export function useSocket() {
     );
 
     socketInstance.current = socket;
-    console.log(socket);
+    // console.log(socket);
     return () => {
       socket.disconnect();
       socketInstance.current = null;

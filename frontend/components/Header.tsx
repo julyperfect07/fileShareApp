@@ -20,7 +20,7 @@ export function Header({ lang, setLang }: HeaderProps) {
       <div className="flex items-center gap-2">
         <Wifi size={18} className="text-teal-400" />
         <span className="text-teal-400 font-semibold text-sm tracking-wide">
-          BrokeHomies
+          GoFile Share
         </span>
       </div>
 

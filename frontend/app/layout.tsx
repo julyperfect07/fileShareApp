@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BrokeHomies",
-  description: "File Sharing App for the Broke Homies",
+  title: "GoFile Share",
+  description: "File Sharing App ",
 };
 
 export default function RootLayout({
