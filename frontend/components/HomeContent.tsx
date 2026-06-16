@@ -121,7 +121,7 @@ export default function HomeContent() {
         t={t}
       />
       {/* Footer  */}
-      <Footer isDark={isDark} />
+      <Footer isDark={isDark} lang={lang} />
     </div>
   );
 }
