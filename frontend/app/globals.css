@@ -87,6 +87,11 @@
 body {
   background: var(--color-background);
   color: var(--color-foreground);
+  font-family: var(--font-syne), sans-serif;
+}
+
+:lang(ar) {
+  font-family: var(--font-tajawal), sans-serif;
 }
 
 :root {
