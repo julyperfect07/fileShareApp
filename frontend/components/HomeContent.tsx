@@ -49,8 +49,8 @@ export default function HomeContent() {
 
   return (
     <div
-      className="relative w-screen h-screen flex items-center justify-center overflow-hidden"
-      style={{ background: isDark ? "#080810" : "#f0fdf9" }}
+      className="relative w-screen h-dvh flex items-center justify-center overflow-hidden"
+      style={{ background: isDark ? "#080810" : "#f0fdf9", height: "100dvh" }}
     >
       {/* TODO : So slow and buggy when receiving files, need to optimize */}
       {/* <FileRequestModal
