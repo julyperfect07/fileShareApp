@@ -32,8 +32,8 @@ export function PeerCircle({
   t,
   onClick,
 }: PeerCircleProps) {
-  const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
-  const radius = 180;
+  const angle = (index / total) * (Math.PI * 1.5) - Math.PI * 1.25;
+  const radius = total === 1 ? 160 : 180;
   const x = Math.cos(angle) * radius;
   const y = Math.sin(angle) * radius;
 

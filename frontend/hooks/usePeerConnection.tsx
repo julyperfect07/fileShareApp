@@ -230,6 +230,14 @@ export function usePeerConnection() {
 
     peer.on("connection", (conn) => setupConn(conn));
 
+    socket.on("existing-users", (users: { peerId: string }[]) => {
+      users.forEach(({ peerId: otherPeerId }) => {
+        if (!peer) return;
+        const conn = peer.connect(otherPeerId);
+        setupConn(conn);
+      });
+    });
+
     socket.on("user-disconnected", ({ peerId: disconnectedPeerId }) => {
       const target = connections.current.find(
         (c) => c.peer === disconnectedPeerId,
@@ -245,6 +253,7 @@ export function usePeerConnection() {
       socket.off("user-connected");
       socket.off("your-name");
       socket.off("user-disconnected");
+      socket.off("existing-users");
       peer.removeAllListeners("connection");
       connections.current.forEach((conn) => conn.close());
       connections.current = [];
